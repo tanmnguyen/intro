@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAN NGUYEN</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>TAN NGUYEN</h1>
+            <p class="subtitle">Image Processing + Computer Vision + Algorithms</p>
+        </header>
+
+        <div id="loadingIndicator" class="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading images and computing flow matching...</p>
+        </div>
+
+        <main>
+            <div class="canvas-container">
+                <div class="canvas-item">
+                    <h3>Source</h3>
+                    <canvas id="sourceCanvas"></canvas>
+                    <canvas id="sourceHistogram" class="histogram"></canvas>
+                </div>
+                
+                <div class="canvas-item">
+                    <h3>Target</h3>
+                    <canvas id="destCanvas"></canvas>
+                    <canvas id="destHistogram" class="histogram"></canvas>
+                </div>
+                
+                <div class="canvas-item">
+                    <h3>Flow Matching</h3>
+                    <canvas id="animationCanvas"></canvas>
+                    <canvas id="animationHistogram" class="histogram"></canvas>
+                </div>
+            </div>
+
+            <div class="insight-section">
+                <h2>🧠 Fun Fact: Vision Transformers Can't Tell These Images Apart!</h2>
+                
+                <p class="fun-fact">
+                    Even though the <strong>flow-matched image</strong> looks semantically more similar to the target, 
+                    a Vision Transformer <em>without positional embeddings</em> can see it as <strong>exactly identical</strong> 
+                    to the source image! Why? Because self-attention is <em>permutation-invariant</em> — it doesn't care 
+                    about pixel positions, only their relationships. When you pool the features (via mean/sum), the permuted 
+                    pixels produce the exact same global representation: \(\mathbf{z}_F = \mathbf{z}_S\).
+                </p>
+                
+                <p class="fun-fact-highlight">
+                    <strong>Key Insight:</strong> This is why positional embeddings are crucial in Vision Transformers — 
+                    without them, models can't distinguish spatial arrangements!
+                </p>
+
+                <button id="toggleProof" class="proof-toggle">
+                    📐 Show Mathematical Proof
+                </button>
+
+                <div id="proofContent" class="proof-content hidden">
+                    <h3>Mathematical Proof</h3>
+
+                <div class="proof-section">
+                    <h4>1. Input Permutation</h4>
+                    <p>
+                        Let the source image features be \(\mathbf{X} \in \mathbb{R}^{N \times d}\), where \(N\) is the 
+                        number of tokens (pixels/patches) and \(d\) is the feature dimension. The flow-matched image features 
+                        \(\mathbf{X}_F\) are a permutation of \(\mathbf{X}\):
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{X}_F = \mathbf{P} \mathbf{X}$$
+                    </p>
+                    <p>
+                        where \(\mathbf{P} \in \{0, 1\}^{N \times N}\) is the permutation matrix, with \(\mathbf{P}^T = \mathbf{P}^{-1}\).
+                    </p>
+                </div>
+
+                <div class="proof-section">
+                    <h4>2. Self-Attention Block Output</h4>
+                    <p>
+                        The self-attention mechanism computes the output features \(\mathbf{Y}\) using the Query (\(\mathbf{Q}\)), 
+                        Key (\(\mathbf{K}\)), and Value (\(\mathbf{V}\)) matrices, which are linear projections of the input \(\mathbf{X}\):
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Q} = \mathbf{X}\mathbf{W}_Q, \quad \mathbf{K} = \mathbf{X}\mathbf{W}_K, \quad \mathbf{V} = \mathbf{X}\mathbf{W}_V$$
+                    </p>
+                    <p>
+                        The attention function for the source image is:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y} = \text{Attention}(\mathbf{X}) = \text{Softmax} \left( \frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}} \right) \mathbf{V}$$
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y} = \text{Softmax} \left( \frac{(\mathbf{X}\mathbf{W}_Q)(\mathbf{X}\mathbf{W}_K)^T}{\sqrt{d_k}} \right) (\mathbf{X}\mathbf{W}_V)$$
+                    </p>
+                    <p>
+                        For the permuted input \(\mathbf{X}_F = \mathbf{P}\mathbf{X}\), the output \(\mathbf{Y}_F\) is:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y}_F = \text{Attention}(\mathbf{X}_F) = \text{Softmax} \left( \frac{(\mathbf{P}\mathbf{X}\mathbf{W}_Q)(\mathbf{P}\mathbf{X}\mathbf{W}_K)^T}{\sqrt{d_k}} \right) (\mathbf{P}\mathbf{X}\mathbf{W}_V)$$
+                    </p>
+                    <p>
+                        Using \((\mathbf{A}\mathbf{B})^T = \mathbf{B}^T\mathbf{A}^T\) and \(\mathbf{P}^T\mathbf{P} = \mathbf{I}\):
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y}_F = \text{Softmax} \left( \frac{\mathbf{P}\mathbf{X}\mathbf{W}_Q\mathbf{W}_K^T\mathbf{X}^T\mathbf{P}^T}{\sqrt{d_k}} \right) \mathbf{P}\mathbf{X}\mathbf{W}_V$$
+                    </p>
+                    <p>
+                        Since the \(\text{Softmax}\) is a row-wise operation, and left-multiplication by \(\mathbf{P}\) permutes rows, 
+                        we have the property \(\text{Softmax}(\mathbf{P}\mathbf{A}\mathbf{P}^T) = \mathbf{P} \text{Softmax}(\mathbf{A}) \mathbf{P}^T\). 
+                        Applying this:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y}_F = \mathbf{P} \left[ \text{Softmax} \left( \frac{\mathbf{X}\mathbf{W}_Q\mathbf{W}_K^T\mathbf{X}^T}{\sqrt{d_k}} \right) \right] \mathbf{P}^T (\mathbf{P}\mathbf{X}\mathbf{W}_V)$$
+                    </p>
+                    <p>
+                        Since \(\mathbf{P}^T\mathbf{P} = \mathbf{I}\):
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y}_F = \mathbf{P} \left[ \text{Softmax} \left( \frac{\mathbf{X}\mathbf{W}_Q\mathbf{W}_K^T\mathbf{X}^T}{\sqrt{d_k}} \right) \mathbf{X}\mathbf{W}_V \right]$$
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Y}_F = \mathbf{P} \mathbf{Y}$$
+                    </p>
+                    <p>
+                        <strong>The output features are merely a permuted version of the original output features.</strong>
+                    </p>
+                </div>
+
+                <div class="proof-section">
+                    <h4>3. Transformer Output and Global Pooling</h4>
+                    <p>
+                        Transformer layers (including Layer Normalization and Feed-Forward Networks) consist of operations that 
+                        are either commutative with \(\mathbf{P}\) or row-wise. By induction, the final feature map 
+                        \(\mathbf{Z}^{(L)}\) of the \(L\)-layer transformer also adheres to this property:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{Z}_F^{(L)} = \mathbf{P} \mathbf{Z}^{(L)}$$
+                    </p>
+                    <p>
+                        The global feature representation \(\mathbf{z}\) is obtained by <strong>sum</strong> or <strong>mean pooling</strong> 
+                        (a commutative operation \(\sum\)) across the \(N\) feature vectors:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{z} = \frac{1}{N} \sum_{i=1}^N \mathbf{z}_i$$
+                    </p>
+                    <p>
+                        For the permuted feature map \(\mathbf{Z}_F^{(L)}\), the reduced feature \(\mathbf{z}_F\) is:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{z}_F = \frac{1}{N} \sum_{i=1}^N \mathbf{z}_{F, i}^{(L)}$$
+                    </p>
+                    <p>
+                        Since \(\mathbf{P}\) only reorders the rows (the set of vectors is identical), the sum is unchanged:
+                    </p>
+                    <p class="formula">
+                        $$\mathbf{z}_F = \frac{1}{N} \sum_{i=1}^N \mathbf{z}_{i}^{(L)} = \mathbf{z}$$
+                    </p>
+                </div>
+
+                <div class="conclusion">
+                    <p>
+                        <strong>Conclusion:</strong> Despite the flow-matched image looking more like the target image in semantic meaning, 
+                        a naive transformer without positional embeddings can view the flow-matched image as <em>exactly identical</em> 
+                        to the source image when taking the reduced feature via mean or sum pooling. This demonstrates the critical 
+                        importance of positional embeddings in Vision Transformers for capturing spatial structure.
+                    </p>
+                </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="flowMatching.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
